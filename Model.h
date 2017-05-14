@@ -51,5 +51,10 @@ struct Triangle {
 };
 void makeTriangle(Model &, State &, Shader&, std::string name, Triangle const &initial_state);
 
+struct Cube {
+    float x, y, rot;
+};
+void makeCube(Model &, State &, Shader&, std::string name, Cube const &initial_state);
+
 
 #endif //OPENGL_MODEL_H

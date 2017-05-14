@@ -52,8 +52,8 @@ void initBuffers(Model &model, State &state, Shader &shader){
     glBindBuffer(GL_ARRAY_BUFFER, context.vertexbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertexbuffer_data), g_vertexbuffer_data, GL_STATIC_DRAW);
      */
-    makeTriangle(model, state, shader, "triangle1", {0, 0, 0});
-    makeTriangle(model, state, shader, "triangle2", {0, 1, 0});
+    makeTriangle(model, state, shader, "triangle", {0, 0, 0});
+    makeCube(model, state, shader, "cube", {0, 1, 0});
 
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
@@ -73,10 +73,10 @@ void initCamera(Context &context, State &state){
 }
 
 void updateState(State &state){
-    Triangle &t1 = state.get<Triangle>("triangle1");
-    t1.rot += 0.01f;
-    Triangle &t2 = state.get<Triangle>("triangle2");
-    t2.rot -= 0.01f;
+    Triangle &t = state.get<Triangle>("triangle");
+    t.rot += 0.01f;
+    Cube &c = state.get<Cube>("cube");
+    c.rot -= 0.01f;
 }
 
 void setCamera(State &state, Shader &shader){
@@ -94,10 +94,8 @@ void view(Context const& context, Model &model, State &state, Shader &shader){
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shader.program_id);
-    glEnableVertexAttribArray(0);
     setCamera(state, shader);
     model.draw(context, state);
-    glDisableVertexAttribArray(0);
 }
 
 void mainLoop(Context &context, Model &model, State &state, Shader &shader){
