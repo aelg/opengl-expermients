@@ -50,7 +50,8 @@ void initVao(Context &context){
 void initBuffers(Model &model, State &state, Shaders &shaders){
     makeTriangle(model, state, shaders["standard"], "triangle", {0, -2, 0});
     makeCube(model, state, shaders["standard"], "cube", {0, 2, 0});
-    makeSquare(model, state, shaders["cross"], "square", 2, {4, 0, 1, 1});
+    makeSquare(model, state, shaders["julia"], "julia", 2, {4, 0, 1, 1});
+    makeSquare(model, state, shaders["mandelbrot"], "mandelbrot", 2, {8, 0, 1, 1});
 
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
@@ -62,7 +63,8 @@ void initBuffers(Model &model, State &state, Shaders &shaders){
 
 void loadShaders(Shaders &shaders){
     shaders["standard"] = load_shaders(SHADER_DIR"/vertex_shader.glsl", SHADER_DIR"/fragment_shader.glsl");
-    shaders["cross"] = load_shaders(SHADER_DIR"/vertex_shader.glsl", SHADER_DIR"/julia_fragment_shader.glsl");
+    shaders["julia"] = load_shaders(SHADER_DIR"/vertex_shader.glsl", SHADER_DIR"/julia_fragment_shader.glsl");
+    shaders["mandelbrot"] = load_shaders(SHADER_DIR"/vertex_shader.glsl", SHADER_DIR"/mandelbrot_fragment_shader.glsl");
 }
 
 struct Camera{
