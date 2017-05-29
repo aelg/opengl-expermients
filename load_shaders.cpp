@@ -67,7 +67,7 @@ GLuint link_program(vector<GLuint> const &shaders){
     return program_id;
 }
 
-Shader load_shaders(std::string const &vertex_file_path, std::string const &fragment_file_path){
+unique_ptr<Shader> load_shaders(std::string const &vertex_file_path, std::string const &fragment_file_path){
     GLuint program_id;
     GLuint vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
@@ -83,8 +83,19 @@ Shader load_shaders(std::string const &vertex_file_path, std::string const &frag
     glDeleteShader(vertex_shader_id);
     glDeleteShader(fragment_shader_id);
 
-    GLint vp_matrix_id = glGetUniformLocation(program_id, "VP");
+    GLint mvp_matrix_id = glGetUniformLocation(program_id, "MVP");
     GLint m_matrix_id = glGetUniformLocation(program_id, "M");
+    GLint v_matrix_id = glGetUniformLocation(program_id, "V");
+    GLint p_matrix_id = glGetUniformLocation(program_id, "P");
+    GLint lightposition_id = glGetUniformLocation(program_id, "LightPosition_worldspace");
+    GLint time_vertex_id = glGetUniformLocation(program_id, "time_vertex");
 
-    return Shader{program_id, vp_matrix_id, m_matrix_id};
+    return unique_ptr<Shader>(new Shader({program_id, mvp_matrix_id, m_matrix_id, v_matrix_id, p_matrix_id, lightposition_id, time_vertex_id}));
+}
+
+Shader::~Shader(){
+    if(program_id != static_cast<GLuint>(-1)) {
+        glDeleteProgram(program_id);
+        cout << "Delete program " << program_id << endl;
+    }
 }

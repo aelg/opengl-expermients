@@ -11,10 +11,27 @@
 using namespace std;
 using namespace glm;
 
+static void calcNormals(GLfloat const *vertices, GLfloat *normals, int size){
+    for(int i = 0; i < size; i += 9){
+        GLfloat const *c1 = &vertices[i];
+        GLfloat const *c2 = &vertices[i+3];
+        GLfloat const *c3 = &vertices[i+6];
+        vec3 edge1 = vec3{c2[0], c2[1], c2[2]} - vec3{c1[0], c1[1], c1[2]};
+        vec3 edge2 = vec3{c3[0], c3[1], c3[2]} - vec3{c1[0], c1[1], c1[2]};
+        vec3 normal = normalize(cross(edge1, edge2));
+        for(int j = 0; j < 3; ++j){
+            GLfloat *n = &normals[i + j*3];
+            n[0] = normal.x;
+            n[1] = normal.y;
+            n[2] = normal.z;
+        }
+    }
+}
 
-void Model::draw(Context const &context, State const &state) {
+
+void Model::draw(Context const &context, State const &state, GLuint program) {
     for(auto &object : objects){
-        object.second(context, state);
+        object.second(context, state, program);
     }
 }
 
@@ -22,7 +39,7 @@ void Model::add(std::string name, draw_function draw) {
     objects[name] = draw;
 }
 
-void makeTriangle(Model &model, State &state, Shader& shader, std::string name, Triangle const &initial_state){
+void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, Triangle const &initial_state){
     static const GLfloat g_vertexbuffer_data[]={
             -1.0f, -1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
@@ -33,6 +50,8 @@ void makeTriangle(Model &model, State &state, Shader& shader, std::string name, 
             0.0f,  1.0f,  0.0f,
             0.0f,  0.0f,  0.1f,
     };
+    static GLfloat g_normalbuffer_data[3*3*1];
+    calcNormals(g_vertexbuffer_data, g_normalbuffer_data, 3*3*1);
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -41,29 +60,41 @@ void makeTriangle(Model &model, State &state, Shader& shader, std::string name, 
     glGenBuffers(1, &colorbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_colorbuffer_data), g_colorbuffer_data, GL_STATIC_DRAW);
+    GLuint normalbuffer;
+    glGenBuffers(1, &normalbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_normalbuffer_data), g_normalbuffer_data, GL_STATIC_DRAW);
 
     state.add(name, initial_state);
-    model.add(name, [vertexbuffer, colorbuffer, shader, name](Context const &context, State const &state){
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shader, name](Context const &context, State const &state, GLuint program){
+        if(program != shader->program_id) return;
         Triangle &triangle = state.get<Triangle>(name);
 
         mat4 t = translate(vec3{triangle.x, triangle.y, 0.0f});
         mat4 r = rotate(triangle.rot, vec3{0.0f, 0.0f, 1.0f});
         mat4 m = t * r;
+        mat4 mvp = state.projection * state.view * m;
 
+        glUseProgram(shader->program_id);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
-        glUniformMatrix4fv(shader.m_matrix_id, 1, GL_FALSE, &m[0][0]);
+        glEnableVertexAttribArray(2);
+        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
     });
 }
 
-void makeCube(Model &model, State &state, Shader& shader, std::string name, Cube const &initial_state){
+void makeCube(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, Cube const &initial_state){
     static const GLfloat g_vertexbuffer_data[]={
             -1.0f,-1.0f,-1.0f, // triangle 1 : begin
             -1.0f,-1.0f, 1.0f,
@@ -140,6 +171,9 @@ void makeCube(Model &model, State &state, Shader& shader, std::string name, Cube
             0.820f,  0.883f,  0.371f,
             0.982f,  0.099f,  0.879f
     };
+    static GLfloat g_normalbuffer_data[3*3*12];
+    calcNormals(g_vertexbuffer_data, g_normalbuffer_data, 3*3*12);
+
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -148,24 +182,116 @@ void makeCube(Model &model, State &state, Shader& shader, std::string name, Cube
     glGenBuffers(1, &colorbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_colorbuffer_data), g_colorbuffer_data, GL_STATIC_DRAW);
+    GLuint normalbuffer;
+    glGenBuffers(1, &normalbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_normalbuffer_data), g_normalbuffer_data, GL_STATIC_DRAW);
 
     state.add(name, initial_state);
-    model.add(name, [vertexbuffer, colorbuffer, shader, name](Context const &context, State const &state){
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shader, name](Context const &context, State const &state, GLuint program){
+        if(program != shader->program_id) return;
         Triangle &triangle = state.get<Triangle>(name);
 
         mat4 t = translate(vec3{triangle.x, triangle.y, 0.0f});
-        mat4 r = rotate(triangle.rot, vec3{0.0f, 0.0f, 1.0f});
+        mat4 r = rotate(triangle.rot, vec3{1.0f, 1.0f, 1.0f});
         mat4 m = t * r;
+        mat4 mvp = state.projection * state.view * m;
 
+        glUseProgram(shader->program_id);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
-        glUniformMatrix4fv(shader.m_matrix_id, 1, GL_FALSE, &m[0][0]);
+        glEnableVertexAttribArray(2);
+        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glDrawArrays(GL_TRIANGLES, 0, 12*3);
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+    });
+}
+
+
+
+void makeSquare(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, GLfloat size, Square const &initial_state){
+    static const GLfloat g_vertexbuffer_data[]={
+            size, size, 0.0f,
+            -size, size, 0.0f,
+            size, -size, 0.0f,
+            -size, -size, 0.0f,
+    };
+    static const GLfloat g_colorbuffer_data[] = {
+            0.5f,  0.5f,  0.5f,
+            0.5f,  0.5f,  0.5f,
+            0.5f,  0.5f,  0.5f,
+            0.5f,  0.5f,  0.5f,
+    };
+    static GLfloat g_normalbuffer_data[] = {
+            0.0f,  0.0f,  1.0f,
+            0.0f,  0.0f,  1.0f,
+            0.0f,  0.0f,  1.0f,
+            0.0f,  0.0f,  1.0f,
+    };
+    static GLfloat g_uvbuffer_data[] = {
+            1, 1,
+            0, 1,
+            1, 0,
+            0, 0,
+    };
+    GLuint vertexbuffer;
+    glGenBuffers(1, &vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertexbuffer_data), g_vertexbuffer_data, GL_STATIC_DRAW);
+    GLuint colorbuffer;
+    glGenBuffers(1, &colorbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_colorbuffer_data), g_colorbuffer_data, GL_STATIC_DRAW);
+    GLuint normalbuffer;
+    glGenBuffers(1, &normalbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_normalbuffer_data), g_normalbuffer_data, GL_STATIC_DRAW);
+    GLuint uvbuffer;
+    glGenBuffers(1, &uvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_uvbuffer_data), g_uvbuffer_data, GL_STATIC_DRAW);
+
+    state.add(name, initial_state);
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, uvbuffer, &shader, name](Context const &context, State const &state, GLuint program){
+        if(program != shader->program_id) return;
+        Square &square = state.get<Square>(name);
+
+        mat4 t = translate(vec3{square.x, square.y, 0.0f});
+        mat4 s = scale(vec3{square.width, square.height, 1.0f});
+        mat4 m = t * s;
+        mat4 mvp = state.projection * state.view * m;
+
+        GLfloat time = static_cast<GLfloat>(glfwGetTime());
+
+        glUseProgram(shader->program_id);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
+        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
+        glUniform1fv(shader->time_vertex_id, 1, &time);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+        glDisableVertexAttribArray(3);
     });
 }

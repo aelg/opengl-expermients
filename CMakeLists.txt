@@ -13,6 +13,6 @@ set(SOURCE_FILES
         load_shaders.h
         Model.cpp
         Model.h
-        )
+        InputHandler.cpp InputHandler.h)
 add_executable(opengl ${SOURCE_FILES})
 target_link_libraries(opengl GL glfw GLEW)
