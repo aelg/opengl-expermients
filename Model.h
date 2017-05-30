@@ -16,7 +16,7 @@
 #include <cstring>
 
 class State {
-    std::map<std::string, std::unique_ptr<char>> data;
+    std::map<std::string, std::unique_ptr<char[]>> data;
 public:
     glm::mat4 projection;
     glm::mat4 view;
@@ -29,7 +29,7 @@ public:
              T &data){
         char *p = new char[sizeof(T)];
         std::memcpy(p, &data, sizeof(T));
-        this->data[name] = std::move(std::unique_ptr<char>(p));
+        this->data[name] = std::move(std::unique_ptr<char[]>(p));
     }
     template <class T,
             class = typename std::enable_if<std::is_trivially_destructible<T>::value, T>::type>

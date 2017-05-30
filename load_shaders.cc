@@ -44,7 +44,7 @@ void compile_shader(string code, GLuint shader_id, string name){
 
 GLuint link_program(vector<GLuint> const &shaders){
     GLint result = GL_FALSE;
-    int info_log_length;
+    int info_log_length = 0;
 
     cout << "Linking program" << endl;
     GLuint program_id = glCreateProgram();
@@ -67,7 +67,9 @@ GLuint link_program(vector<GLuint> const &shaders){
     return program_id;
 }
 
-unique_ptr<Shader> load_shaders(std::string const &vertex_file_path, std::string const &fragment_file_path){
+unique_ptr<Shader> load_shaders(string const &vertex_file_path,
+                                string const &fragment_file_path,
+                                vector<std::string> const &uniforms){
     GLuint program_id;
     GLuint vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
@@ -83,14 +85,13 @@ unique_ptr<Shader> load_shaders(std::string const &vertex_file_path, std::string
     glDeleteShader(vertex_shader_id);
     glDeleteShader(fragment_shader_id);
 
-    GLint mvp_matrix_id = glGetUniformLocation(program_id, "MVP");
-    GLint m_matrix_id = glGetUniformLocation(program_id, "M");
-    GLint v_matrix_id = glGetUniformLocation(program_id, "V");
-    GLint p_matrix_id = glGetUniformLocation(program_id, "P");
-    GLint lightposition_id = glGetUniformLocation(program_id, "LightPosition_worldspace");
-    GLint time_vertex_id = glGetUniformLocation(program_id, "time_vertex");
+    Shader *shader = new Shader();
+    for(auto &uniform : uniforms){
+        shader->uniform[uniform] = glGetUniformLocation(program_id, uniform.c_str());
+    }
+    shader->program_id = program_id;
 
-    return unique_ptr<Shader>(new Shader({program_id, mvp_matrix_id, m_matrix_id, v_matrix_id, p_matrix_id, lightposition_id, time_vertex_id}));
+    return unique_ptr<Shader>(shader);
 }
 
 Shader::~Shader(){
@@ -98,4 +99,10 @@ Shader::~Shader(){
         glDeleteProgram(program_id);
         cout << "Delete program " << program_id << endl;
     }
+}
+
+GLint Shader::operator[](std::string const &name) const {
+    auto it = uniform.find(name);
+    if(it == uniform.end()) throw runtime_error("Using unregistered uniform");
+    return it->second;
 }

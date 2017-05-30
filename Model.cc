@@ -39,7 +39,29 @@ void Model::add(std::string name, draw_function draw) {
     objects[name] = draw;
 }
 
-void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, Triangle const &initial_state){
+class Destroyer{
+private:
+    std::function<void()> f;
+    Destroyer(){}
+public:
+    Destroyer(std::function<void()> destroyer) : f(destroyer){}
+    Destroyer(Destroyer &destroyer){
+        f = destroyer.f;
+        destroyer.f = nullptr;
+    }
+    Destroyer(Destroyer &&destroyer){
+        f = destroyer.f;
+        destroyer.f = nullptr;
+    }
+    Destroyer &operator=(Destroyer&) = delete;
+    Destroyer &operator=(Destroyer&&) = delete;
+    ~Destroyer(){
+        if(f) f();
+        cout << "Destroyer called" << endl;
+    }
+};
+
+void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shaderp, std::string const &name, Triangle const &initial_state){
     static const GLfloat g_vertexbuffer_data[]={
             -1.0f, -1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
@@ -66,8 +88,9 @@ void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shader, std::s
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_normalbuffer_data), g_normalbuffer_data, GL_STATIC_DRAW);
 
     state.add(name, initial_state);
-    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shader, name](Context const &context, State const &state, GLuint program){
-        if(program != shader->program_id) return;
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shaderp, name](Context const &context, State const &state, GLuint program){
+        auto &shader = *shaderp;
+        if(program != shader.program_id) return;
         Triangle &triangle = state.get<Triangle>(name);
 
         mat4 t = translate(vec3{triangle.x, triangle.y, 0.0f});
@@ -75,12 +98,12 @@ void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shader, std::s
         mat4 m = t * r;
         mat4 mvp = state.projection * state.view * m;
 
-        glUseProgram(shader->program_id);
+        glUseProgram(shader.program_id);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
-        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
-        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
+        glUniformMatrix4fv(shader["MVP"], 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader["M"], 1, GL_FALSE, &m[0][0]);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
@@ -94,7 +117,7 @@ void makeTriangle(Model &model, State &state, unique_ptr<Shader> &shader, std::s
     });
 }
 
-void makeCube(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, Cube const &initial_state){
+void makeCube(Model &model, State &state, unique_ptr<Shader> &shaderp, std::string const &name, Cube const &initial_state){
     static const GLfloat g_vertexbuffer_data[]={
             -1.0f,-1.0f,-1.0f, // triangle 1 : begin
             -1.0f,-1.0f, 1.0f,
@@ -188,8 +211,9 @@ void makeCube(Model &model, State &state, unique_ptr<Shader> &shader, std::strin
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_normalbuffer_data), g_normalbuffer_data, GL_STATIC_DRAW);
 
     state.add(name, initial_state);
-    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shader, name](Context const &context, State const &state, GLuint program){
-        if(program != shader->program_id) return;
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, &shaderp, name](Context const &context, State const &state, GLuint program){
+        auto &shader = *shaderp;
+        if(program != shader.program_id) return;
         Triangle &triangle = state.get<Triangle>(name);
 
         mat4 t = translate(vec3{triangle.x, triangle.y, 0.0f});
@@ -197,12 +221,12 @@ void makeCube(Model &model, State &state, unique_ptr<Shader> &shader, std::strin
         mat4 m = t * r;
         mat4 mvp = state.projection * state.view * m;
 
-        glUseProgram(shader->program_id);
+        glUseProgram(shader.program_id);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
-        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
-        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
+        glUniformMatrix4fv(shader["MVP"], 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader["M"], 1, GL_FALSE, &m[0][0]);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
@@ -218,7 +242,7 @@ void makeCube(Model &model, State &state, unique_ptr<Shader> &shader, std::strin
 
 
 
-void makeSquare(Model &model, State &state, unique_ptr<Shader> &shader, std::string const &name, GLfloat size, Square const &initial_state){
+void makeSquare(Model &model, State &state, unique_ptr<Shader> &shaderp, std::string const &name, GLfloat size, Square const &initial_state){
     static const GLfloat g_vertexbuffer_data[]={
             size, size, 0.0f,
             -size, size, 0.0f,
@@ -261,8 +285,9 @@ void makeSquare(Model &model, State &state, unique_ptr<Shader> &shader, std::str
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_uvbuffer_data), g_uvbuffer_data, GL_STATIC_DRAW);
 
     state.add(name, initial_state);
-    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, uvbuffer, &shader, name](Context const &context, State const &state, GLuint program){
-        if(program != shader->program_id) return;
+    model.add(name, [vertexbuffer, colorbuffer, normalbuffer, uvbuffer, &shaderp, name](Context const &context, State const &state, GLuint program){
+        auto &shader = *shaderp;
+        if(program != shader.program_id) return;
         Square &square = state.get<Square>(name);
 
         mat4 t = translate(vec3{square.x, square.y, 0.0f});
@@ -272,14 +297,14 @@ void makeSquare(Model &model, State &state, unique_ptr<Shader> &shader, std::str
 
         GLfloat time = static_cast<GLfloat>(glfwGetTime());
 
-        glUseProgram(shader->program_id);
+        glUseProgram(shader.program_id);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
         glEnableVertexAttribArray(3);
-        glUniformMatrix4fv(shader->mvp_matrix_id, 1, GL_FALSE, &mvp[0][0]);
-        glUniformMatrix4fv(shader->m_matrix_id, 1, GL_FALSE, &m[0][0]);
-        glUniform1fv(shader->time_vertex_id, 1, &time);
+        glUniformMatrix4fv(shader["MVP"], 1, GL_FALSE, &mvp[0][0]);
+        glUniformMatrix4fv(shader["M"], 1, GL_FALSE, &m[0][0]);
+        glUniform1fv(shader["time_vertex"], 1, &time);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, static_cast<void*>(0));
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);

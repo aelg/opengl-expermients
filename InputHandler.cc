@@ -38,6 +38,7 @@ InputHandlerImpl::InputHandlerImpl(GLFWwindow *window) : m(), window(window) {
     };
 
     glfwSetKeyCallback(window, &callback);
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 }
 
 InputHandlerImpl::~InputHandlerImpl() {

@@ -3,16 +3,22 @@ project(opengl)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_definitions(-DSHADER_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+add_definitions(-DSHADER_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/shaders\")
 
-set(SOURCE_FILES
-        main.cpp
-        Context.cpp
-        Context.h
-        load_shaders.cpp
-        load_shaders.h
-        Model.cpp
-        Model.h
-        InputHandler.cpp InputHandler.h)
-add_executable(opengl ${SOURCE_FILES})
+add_definitions(-g)
+
+add_executable(opengl
+        main.cc
+        Context.cc
+        load_shaders.cc
+        Model.cc
+        InputHandler.cc)
 target_link_libraries(opengl GL glfw GLEW)
+
+add_executable(mandelbrot
+        mandelbrot.cc
+        Context.cc
+        load_shaders.cc
+        Model.cc
+        InputHandler.cc)
+target_link_libraries(mandelbrot GL glfw GLEW)
