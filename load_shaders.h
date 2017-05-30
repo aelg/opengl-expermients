@@ -17,6 +17,7 @@ struct Shader{
     GLint p_matrix_id;
     GLint lightposition_id;
     GLint time_vertex_id;
+    GLint offset_vertex_id;
     ~Shader();
 };
 

@@ -89,8 +89,9 @@ unique_ptr<Shader> load_shaders(std::string const &vertex_file_path, std::string
     GLint p_matrix_id = glGetUniformLocation(program_id, "P");
     GLint lightposition_id = glGetUniformLocation(program_id, "LightPosition_worldspace");
     GLint time_vertex_id = glGetUniformLocation(program_id, "time_vertex");
+    GLint offset_vertex_id = glGetUniformLocation(program_id, "offset_vertex");
 
-    return unique_ptr<Shader>(new Shader({program_id, mvp_matrix_id, m_matrix_id, v_matrix_id, p_matrix_id, lightposition_id, time_vertex_id}));
+    return unique_ptr<Shader>(new Shader({program_id, mvp_matrix_id, m_matrix_id, v_matrix_id, p_matrix_id, lightposition_id, time_vertex_id, offset_vertex_id}));
 }
 
 Shader::~Shader(){

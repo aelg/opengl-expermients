@@ -5,14 +5,10 @@ set(CMAKE_CXX_STANDARD 14)
 
 add_definitions(-DSHADER_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 
-set(SOURCE_FILES
+add_executable(opengl
         main.cpp
         Context.cpp
-        Context.h
         load_shaders.cpp
-        load_shaders.h
         Model.cpp
-        Model.h
-        InputHandler.cpp InputHandler.h)
-add_executable(opengl ${SOURCE_FILES})
+        InputHandler.cpp)
 target_link_libraries(opengl GL glfw GLEW)
